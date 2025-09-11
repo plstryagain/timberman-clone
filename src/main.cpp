@@ -7,14 +7,29 @@
 #include "SFML/Window/WindowStyle.hpp"
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 #include <SFML/Graphics.hpp>
 
 inline static constexpr uint32_t SCREEN_WIDTH = 1920;
 inline static constexpr uint32_t SCREEN_HEIGHT = 1080;
+#ifdef __APPLE__
+inline static constexpr uint32_t DPI_SCALE = 2;
+#else
+inline static constexpr uint32_t DPI_SCALE = 1;
+#endif
+
+struct Cloud
+{
+    sf::Sprite sprite;
+    uint32_t x;
+    uint32_t y;
+    bool is_active;
+    float speed;
+};
 
 int main()
 {
-    sf::VideoMode vm(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2);
+    sf::VideoMode vm(SCREEN_WIDTH * DPI_SCALE, SCREEN_HEIGHT * DPI_SCALE);
     sf::RenderWindow window(vm, "Timber!", sf::Style::Default);
     window.setView(sf::View(sf::FloatRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))); 
 
@@ -40,6 +55,16 @@ int main()
 
     sf::Texture texture_cloud;
     texture_cloud.loadFromFile("assets/graphics/cloud.png");
+    std::vector<Cloud> clouds = {
+        { {}, 0, 0, false, 0.0f },
+        { {}, 0, 250, false, 0.0f},
+        { {}, 0, 500, false, 0.0f},
+    };
+    size_t cloud_num = clouds.size();
+    for (int i = 0; i < cloud_num; ++i) {
+        clouds[i].sprite.setTexture(texture_cloud);
+        clouds[i].sprite.setPosition(clouds[i].x, clouds[i].y);
+    }
     sf::Sprite sprite_cloud1;
     sf::Sprite sprite_cloud2;
     sf::Sprite sprite_cloud3;
@@ -85,28 +110,32 @@ int main()
                 is_bee_active = false;
             }
         }
-
-        if (!is_cloud1_active) {
-            srand(static_cast<int>(time(0)) * 10);
-            cloud1_speed = (rand() % 200);
-            srand(static_cast<int>(time(0)) * 10);
-            float cloud1_height = (rand() % 150);
-            sprite_cloud1.setPosition(-200, cloud1_height);
-            is_cloud1_active = true;
-        } else {
-            sprite_cloud1.setPosition(sprite_cloud1.getPosition().x + (cloud1_speed * dt.asSeconds()),
-                                        sprite_cloud1.getPosition().y);
-            if (sprite_cloud1.getPosition().x > SCREEN_WIDTH) {
-                is_cloud1_active = false;
+        for (auto& cloud : clouds) {
+            if (!cloud.is_active) {
+                srand(static_cast<int>(time(0)) * 10);
+                cloud.speed = (rand() % 200);
+                // std::cout << "speed: " << cloud.speed << std::endl;
+                srand(static_cast<int>(time(0)) * 10);
+                float cloud_height = (rand() % 150);
+                // std::cout << "height: " << cloud_height << std::endl;
+                cloud.sprite.setPosition(-200, cloud_height);
+                cloud.is_active = true;
+            } else {
+                cloud.sprite.setPosition(cloud.sprite.getPosition().x + (cloud.speed * dt.asSeconds()),
+                                            cloud.sprite.getPosition().y);
+                if (cloud.sprite.getPosition().x > SCREEN_WIDTH) {
+                    cloud.is_active = false;
+                }
             }
         }
 
         // render
         window.clear();
         window.draw(sprite_background);
-        window.draw(sprite_cloud1);
-        window.draw(sprite_cloud2);
-        window.draw(sprite_cloud3);
+        for (auto& cloud : clouds) {
+            // std::cout << cloud.x << ", " << cloud.y << ", " << cloud.speed << std::endl;
+            window.draw(cloud.sprite);
+        }
         window.draw(sprite_tree);
 
         window.draw(sprite_bee);

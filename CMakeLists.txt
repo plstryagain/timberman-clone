@@ -21,4 +21,12 @@ if (APPLE)
                             sfml-network
                             
     )
+elseif (LINUX)
+    target_link_libraries(${PROJECT_NAME}
+                            sfml-system 
+                            sfml-window 
+                            sfml-graphics 
+                            sfml-audio 
+                            sfml-network
+    )
 endif ()
