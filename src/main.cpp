@@ -1,14 +1,19 @@
+#include "SFML/Graphics/Color.hpp"
+#include "SFML/Graphics/Rect.hpp"
+#include "SFML/Graphics/RectangleShape.hpp"
 #include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Sprite.hpp"
 #include "SFML/Graphics/Texture.hpp"
 #include "SFML/System/Clock.hpp"
 #include "SFML/System/Time.hpp"
+#include "SFML/System/Vector2.hpp"
 #include "SFML/Window/Event.hpp"
 #include "SFML/Window/Keyboard.hpp"
 #include "SFML/Window/WindowStyle.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include <sstream>
 #include <SFML/Graphics.hpp>
 
 inline static constexpr uint32_t SCREEN_WIDTH = 1920;
@@ -70,6 +75,36 @@ int main()
 
     sf::Clock clock{};
     bool is_paused = true;
+    sf::RectangleShape time_bar;
+    float time_bar_start_width = 400;
+    float time_bar_heigth = 80;
+    time_bar.setSize(sf::Vector2f{time_bar_start_width, time_bar_heigth});
+    time_bar.setFillColor(sf::Color::Red);
+    time_bar.setPosition((SCREEN_WIDTH / 2) - time_bar_start_width / 2, 980);
+    sf::Time game_time_global;
+    float time_remaining = 6.0f;
+    float time_bar_width_per_second = time_bar_start_width / time_remaining;
+
+    uint32_t score{0};
+    sf::Font font;
+    font.loadFromFile("assets/fonts/KOMIKAP_.ttf");
+    sf::Text message_text;
+    sf::Text score_text;
+    message_text.setFont(font);
+    score_text.setFont(font);
+    message_text.setString("Press Enter to begin!");
+    score_text.setString("Score: 0");
+    message_text.setCharacterSize(75);
+    score_text.setCharacterSize(100);
+    message_text.setFillColor(sf::Color::White);
+    score_text.setFillColor(sf::Color::White);
+
+    sf::FloatRect text_rect = message_text.getLocalBounds();
+    message_text.setOrigin(text_rect.left +
+                            text_rect.width / 2.0f,
+                            text_rect.top + text_rect.height / 2.0f);
+    message_text.setPosition(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f);
+    score_text.setPosition(20, 20);
 
     while (window.isOpen()) {
         // if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
@@ -83,13 +118,24 @@ int main()
             } else if (event.type == sf::Event::KeyPressed) {
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Return)) {
                     is_paused = false;
-                    std::cout << "enter" << std::endl;
+                    score = 0;
+                    time_remaining = 6;
                 }
             }
         }
         // update
         if (!is_paused) {
             sf::Time dt = clock.restart();
+            time_remaining -= dt.asSeconds();
+            time_bar.setSize(sf::Vector2f{time_bar_width_per_second * time_remaining, time_bar_heigth});
+            if (time_remaining <= 0.0f) {
+                is_paused = true;
+                message_text.setString("Time out!");
+                text_rect = message_text.getLocalBounds();
+                message_text.setOrigin(text_rect.left + text_rect.width / 2.0f,
+                                        text_rect.top +text_rect.height / 2.0f);
+                message_text.setPosition(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f);
+            }
             if (!is_bee_active) {
                 srand(static_cast<int>(time(0)));
                 bee_speed = (rand() % 200) + 200;
@@ -128,6 +174,10 @@ int main()
             }
         }
 
+        std::stringstream ss;
+        ss << "Score: " << score;
+        score_text.setString(ss.str());
+
         // render
         window.clear();
         window.draw(sprite_background);
@@ -136,8 +186,13 @@ int main()
             window.draw(cloud.sprite);
         }
         window.draw(sprite_tree);
+        window.draw(time_bar);
 
         window.draw(sprite_bee);
+        window.draw(score_text);
+        if (is_paused) {
+            window.draw(message_text);
+        }
         window.display();
     }
     return 0;
