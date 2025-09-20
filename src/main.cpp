@@ -1,3 +1,4 @@
+#include "SFML/Audio/SoundBuffer.hpp"
 #include "SFML/Graphics/Color.hpp"
 #include "SFML/Graphics/Rect.hpp"
 #include "SFML/Graphics/RectangleShape.hpp"
@@ -10,6 +11,7 @@
 #include "SFML/Window/Event.hpp"
 #include "SFML/Window/Keyboard.hpp"
 #include "SFML/Window/WindowStyle.hpp"
+#include "SFML/Audio.hpp"
 #include <_types/_intmax_t.h>
 #include <_types/_uint32_t.h>
 #include <cstdlib>
@@ -183,6 +185,19 @@ int main()
 
     bool is_accept_input = false;
 
+    sf::SoundBuffer buffer_chop;
+    buffer_chop.loadFromFile("assets/sound/chop.wav");
+    sf::Sound chop;
+    chop.setBuffer(buffer_chop);
+    sf::SoundBuffer buffer_death;
+    buffer_death.loadFromFile("assets/sound/death.wav");
+    sf::Sound death;
+    death.setBuffer(buffer_death);
+    sf::SoundBuffer buffer_oot;
+    buffer_oot.loadFromFile("assets/sound/out_of_time.wav");
+    sf::Sound out_of_time;
+    out_of_time.setBuffer(buffer_oot);
+
     while (window.isOpen()) {
         // if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
         //     window.close();
@@ -216,6 +231,7 @@ int main()
                         log_speed_x = -5000;
                         is_log_active = true;
                         is_accept_input = false;
+                        chop.play();
                     } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
                         player_side = SIDE::kLeft;
                         score++;
@@ -227,6 +243,7 @@ int main()
                         log_speed_x = 5000;
                         is_log_active = true;
                         is_accept_input = false;
+                        chop.play();
                     }
                 }
             } else if (event.type == sf::Event::KeyReleased && !is_paused) {
@@ -246,6 +263,7 @@ int main()
                 message_text.setOrigin(text_rect.left + text_rect.width / 2.0f,
                                         text_rect.top +text_rect.height / 2.0f);
                 message_text.setPosition(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f);
+                out_of_time.play();
             }
             if (!is_bee_active) {
                 srand(static_cast<int>(time(0)));
@@ -304,6 +322,23 @@ int main()
             if (is_log_active) {
                 sprite_log.setPosition(sprite_log.getPosition().x + (log_speed_x * dt.asSeconds()),
                                         sprite_log.getPosition().y + (log_speed_y * dt.asSeconds()));
+                if (sprite_log.getPosition().x < -100 || 
+                    sprite_log.getPosition().x > 2000) {
+                    is_log_active = false;
+                    sprite_log.setPosition(810, 720);
+                }
+            }
+            if (branch_positions[5] == player_side) {
+                is_paused = true;
+                is_accept_input = false;
+                sprite_rip.setPosition(525, 760);
+                sprite_player.setPosition(2000, 660);
+                message_text.setString("WASTED!");
+                sf::FloatRect text_rect = message_text.getLocalBounds();
+                message_text.setOrigin(text_rect.left + text_rect.width / 2.0f,
+                                        text_rect.top + text_rect.height / 2.0f);
+                message_text.setPosition(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f);
+                death.play();
             }
         }
 
