@@ -10,8 +10,11 @@
 #include "SFML/Window/Event.hpp"
 #include "SFML/Window/Keyboard.hpp"
 #include "SFML/Window/WindowStyle.hpp"
+#include <_types/_intmax_t.h>
+#include <_types/_uint32_t.h>
 #include <cstdlib>
 #include <iostream>
+#include <sys/_types/_int32_t.h>
 #include <vector>
 #include <sstream>
 #include <SFML/Graphics.hpp>
@@ -34,12 +37,44 @@ struct Cloud
     uint32_t seed;
 };
 
+enum class SIDE {
+    kLeft,
+    kRight,
+    kNone
+};
+
+inline static constexpr uint32_t BRANCHES_NUM = 6;
+std::vector<sf::Sprite> branches;
+std::vector<SIDE> branch_positions;
+
+static void update_branches(int seed)
+{
+    for (int32_t j = BRANCHES_NUM -1; j > 0; j--) {
+        branch_positions[j] = branch_positions[j - 1];
+    }
+    srand(static_cast<int32_t>(time(0)) + seed);
+    int32_t r = (rand() % 5);
+    switch (r) {
+    case 0:
+        branch_positions[0] = SIDE::kLeft;
+        break;
+    case 1:
+        branch_positions[0] = SIDE::kRight;
+        break;
+    default:
+        branch_positions[0] = SIDE::kNone;
+        break;
+    }
+}
+
 int main()
 {
     sf::VideoMode vm(SCREEN_WIDTH * DPI_SCALE, SCREEN_HEIGHT * DPI_SCALE);
     sf::RenderWindow window(vm, "Timber!", sf::Style::Default);
     window.setView(sf::View(sf::FloatRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))); 
 
+    branches.resize(BRANCHES_NUM);
+    branch_positions.resize(BRANCHES_NUM);
     sf::Texture texture_background;
     texture_background.loadFromFile("assets/graphics/background.png");
     sf::Sprite sprite_background;
@@ -106,6 +141,48 @@ int main()
     message_text.setPosition(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f);
     score_text.setPosition(20, 20);
 
+    sf::Texture texture_branch;
+    texture_branch.loadFromFile("assets/graphics/branch.png");
+    for (int32_t i = 0; i < BRANCHES_NUM; ++i) {
+        branches[i].setTexture(texture_branch);
+        branches[i].setPosition(-2000, -2000);
+        branches[i].setOrigin(220, 20);
+    }
+
+    sf::Texture texture_player;
+    texture_player.loadFromFile("assets/graphics/player.png");
+    sf::Sprite sprite_player;
+    sprite_player.setTexture(texture_player);
+    sprite_player.setPosition(580, 720);
+    SIDE player_side = SIDE::kLeft;
+
+    sf::Texture texture_rip;
+    texture_rip.loadFromFile("assets/graphics/rip.png");
+    sf::Sprite sprite_rip;
+    sprite_rip.setTexture(texture_rip);
+    sprite_rip.setPosition(600, 860);
+
+    sf::Texture texture_axe;
+    texture_axe.loadFromFile("assets/graphics/axe.png");
+    sf::Sprite sprite_axe;
+    sprite_axe.setTexture(texture_axe);
+    sprite_axe.setPosition(700, 830);
+
+    const float AXE_POSTITION_LEFT = 700;
+    const float AXE_POSITION_RIGHT = 1075;
+
+    sf::Texture texture_log;
+    texture_log.loadFromFile("assets/graphics/log.png");
+    sf::Sprite sprite_log;
+    sprite_log.setTexture(texture_log);
+    sprite_log.setPosition(810, 720);
+
+    bool is_log_active = false;
+    float log_speed_x = 1000;
+    float log_speed_y = -1500;
+
+    bool is_accept_input = false;
+
     while (window.isOpen()) {
         // if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
         //     window.close();
@@ -120,7 +197,41 @@ int main()
                     is_paused = false;
                     score = 0;
                     time_remaining = 6;
+                    for (auto& branch : branch_positions) {
+                        branch = SIDE::kNone;
+                    }
+                    sprite_rip.setPosition(675, 2000);
+                    sprite_player.setPosition(580, 720);
+                    is_accept_input = true;
                 }
+                if (is_accept_input) {
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+                        player_side = SIDE::kRight;
+                        score++;
+                        time_remaining += (2.0 / score) + .15;
+                        sprite_axe.setPosition(AXE_POSITION_RIGHT, sprite_axe.getPosition().y);
+                        sprite_player.setPosition(1200, 720);
+                        update_branches(score);
+                        sprite_log.setPosition(810, 720);
+                        log_speed_x = -5000;
+                        is_log_active = true;
+                        is_accept_input = false;
+                    } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
+                        player_side = SIDE::kLeft;
+                        score++;
+                        time_remaining += (2.0 / score) + .15;
+                        sprite_axe.setPosition(AXE_POSTITION_LEFT, sprite_axe.getPosition().y);
+                        sprite_player.setPosition(580, 720);
+                        update_branches(score);
+                        sprite_log.setPosition(810, 720);
+                        log_speed_x = 5000;
+                        is_log_active = true;
+                        is_accept_input = false;
+                    }
+                }
+            } else if (event.type == sf::Event::KeyReleased && !is_paused) {
+                is_accept_input = true;
+                sprite_axe.setPosition(2000, sprite_axe.getPosition().y);
             }
         }
         // update
@@ -172,11 +283,29 @@ int main()
                     }
                 }
             }
-        }
+        
 
-        std::stringstream ss;
-        ss << "Score: " << score;
-        score_text.setString(ss.str());
+            std::stringstream ss;
+            ss << "Score: " << score;
+            score_text.setString(ss.str());
+
+            for (int32_t i = 0; i < BRANCHES_NUM; ++i) {
+                float heigth = 150 * i;
+                if (branch_positions[i] == SIDE::kLeft) {
+                    branches[i].setPosition(610, heigth);
+                    branches[i].setRotation(180);
+                } else if (branch_positions[i] == SIDE::kRight) {
+                    branches[i].setPosition(1330, heigth);
+                    branches[i].setRotation(0);
+                } else {
+                    branches[i].setPosition(3000, heigth);
+                }
+            }
+            if (is_log_active) {
+                sprite_log.setPosition(sprite_log.getPosition().x + (log_speed_x * dt.asSeconds()),
+                                        sprite_log.getPosition().y + (log_speed_y * dt.asSeconds()));
+            }
+        }
 
         // render
         window.clear();
@@ -185,8 +314,16 @@ int main()
             // std::cout << cloud.x << ", " << cloud.y << ", " << cloud.speed << std::endl;
             window.draw(cloud.sprite);
         }
+        for (const auto& branch : branches) {
+            window.draw(branch);
+        }
         window.draw(sprite_tree);
         window.draw(time_bar);
+
+        window.draw(sprite_player);
+        window.draw(sprite_axe);
+        window.draw(sprite_log);
+        window.draw(sprite_rip);
 
         window.draw(sprite_bee);
         window.draw(score_text);
